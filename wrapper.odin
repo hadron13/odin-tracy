@@ -57,12 +57,26 @@ ZoneBegin :: proc(active: bool, depth: i32, loc := #caller_location) -> (ctx: Zo
 // (See allocator.odin for an implementation of an Odin custom allocator using memory profiling.)
 @(disabled=!TRACY_ENABLE) Alloc        :: #force_inline proc(ptr: rawptr, size: c.size_t, depth: i32 = TRACY_CALLSTACK)                { when TRACY_HAS_CALLSTACK { ___tracy_emit_memory_alloc_callstack(ptr, size, depth, false)             } else { ___tracy_emit_memory_alloc(ptr, size, false)             } }
 @(disabled=!TRACY_ENABLE) Free         :: #force_inline proc(ptr: rawptr, depth: i32 = TRACY_CALLSTACK)                                { when TRACY_HAS_CALLSTACK { ___tracy_emit_memory_free_callstack(ptr, depth, false)                    } else { ___tracy_emit_memory_free(ptr, false)                    } }
+@(disabled=!TRACY_ENABLE) MemoryDiscard:: #force_inline proc(name: cstring, depth: i32 = TRACY_CALLSTACK)                              { when TRACY_HAS_CALLSTACK { ___tracy_emit_memory_discard_callstack(name, false, depth)                } else { ___tracy_emit_memory_discard(name, false)                 } }
 @(disabled=!TRACY_ENABLE) SecureAlloc  :: #force_inline proc(ptr: rawptr, size: c.size_t, depth: i32 = TRACY_CALLSTACK)                { when TRACY_HAS_CALLSTACK { ___tracy_emit_memory_alloc_callstack(ptr, size, depth, true)              } else { ___tracy_emit_memory_alloc(ptr, size, true)              } }
 @(disabled=!TRACY_ENABLE) SecureFree   :: #force_inline proc(ptr: rawptr, depth: i32 = TRACY_CALLSTACK)                                { when TRACY_HAS_CALLSTACK { ___tracy_emit_memory_free_callstack(ptr, depth, true)                     } else { ___tracy_emit_memory_free(ptr, true)                     } }
+@(disabled=!TRACY_ENABLE) SecureMemoryDiscard:: #force_inline proc(name: cstring, depth: i32 = TRACY_CALLSTACK)                        { when TRACY_HAS_CALLSTACK { ___tracy_emit_memory_discard_callstack(name, true, depth)                 } else { ___tracy_emit_memory_discard(name, true)                 } }
 @(disabled=!TRACY_ENABLE) AllocN       :: #force_inline proc(ptr: rawptr, size: c.size_t, name: cstring, depth: i32 = TRACY_CALLSTACK) { when TRACY_HAS_CALLSTACK { ___tracy_emit_memory_alloc_callstack_named(ptr, size, depth, false, name) } else { ___tracy_emit_memory_alloc_named(ptr, size, false, name) } }
 @(disabled=!TRACY_ENABLE) FreeN        :: #force_inline proc(ptr: rawptr, name: cstring, depth: i32 = TRACY_CALLSTACK)                 { when TRACY_HAS_CALLSTACK { ___tracy_emit_memory_free_callstack_named(ptr, depth, false, name)        } else { ___tracy_emit_memory_free_named(ptr, false, name)        } }
 @(disabled=!TRACY_ENABLE) SecureAllocN :: #force_inline proc(ptr: rawptr, size: c.size_t, name: cstring, depth: i32 = TRACY_CALLSTACK) { when TRACY_HAS_CALLSTACK { ___tracy_emit_memory_alloc_callstack_named(ptr, size, depth, true, name)  } else { ___tracy_emit_memory_alloc_named(ptr, size, true, name)  } }
 @(disabled=!TRACY_ENABLE) SecureFreeN  :: #force_inline proc(ptr: rawptr, name: cstring, depth: i32 = TRACY_CALLSTACK)                 { when TRACY_HAS_CALLSTACK { ___tracy_emit_memory_free_callstack_named(ptr, depth, true, name)         } else { ___tracy_emit_memory_free_named(ptr, true, name)         } }
+
+
+// TODO : port these
+
+// @(disabled=!TRACY_ENABLE) TracyCLockAnnounce      :: #force_inline proc( lock ) static const struct ___tracy_source_location_data TracyConcat(__tracy_source_location,TracyLine) = { NULL, __func__,  TracyFile, (uint32_t)TracyLine, 0 }; lock = ___tracy_announce_lockable_ctx( &TracyConcat(__tracy_source_location,TracyLine) );
+// @(disabled=!TRACY_ENABLE) TracyCLockTerminate     :: #force_inline proc( lock ) ___tracy_terminate_lockable_ctx( lock );
+// @(disabled=!TRACY_ENABLE) TracyCLockBeforeLock    :: #force_inline proc( lock ) ___tracy_before_lock_lockable_ctx( lock );
+// @(disabled=!TRACY_ENABLE) TracyCLockAfterLock     :: #force_inline proc( lock ) ___tracy_after_lock_lockable_ctx( lock );
+// @(disabled=!TRACY_ENABLE) TracyCLockAfterUnlock   :: #force_inline proc( lock ) ___tracy_after_unlock_lockable_ctx( lock );
+// @(disabled=!TRACY_ENABLE) TracyCLockAfterTryLock  :: #force_inline proc( lock, acquired ) ___tracy_after_try_lock_lockable_ctx( lock, acquired );
+// @(disabled=!TRACY_ENABLE) TracyCLockMark          :: #force_inline proc( lock ) static const struct ___tracy_source_location_data TracyConcat(__tracy_source_location,TracyLine) = { NULL, __func__,  TracyFile, (uint32_t)TracyLine, 0 }; ___tracy_mark_lockable_ctx( lock, &TracyConcat(__tracy_source_location,TracyLine) );
+// @(disabled=!TRACY_ENABLE) TracyCLockCustomName    :: #force_inline proc( lock, name, nameSz ) {___tracy_custom_name_lockable_ctx( lock, name, nameSz )}
 
 // Dummy aliases to match C API (only difference is the `depth` parameter,
 // which we declare as optional for the non-S procs.)
@@ -111,6 +125,7 @@ IsConnected :: #force_inline proc() -> bool { return cast(bool)___tracy_connecte
 	___tracy_emit_gpu_new_context
 	___tracy_emit_gpu_context_name
 	___tracy_emit_gpu_calibration
+    ___tracy_emit_gpu_time_sync
 
 	___tracy_emit_gpu_zone_begin_serial
 	___tracy_emit_gpu_zone_begin_callstack_serial
@@ -121,6 +136,7 @@ IsConnected :: #force_inline proc() -> bool { return cast(bool)___tracy_connecte
 	___tracy_emit_gpu_new_context_serial
 	___tracy_emit_gpu_context_name_serial
 	___tracy_emit_gpu_calibration_serial
+    ___tracy_emit_gpu_time_sync_serial
 */
 
 // Helper for passing cstring+length to Tracy functions.

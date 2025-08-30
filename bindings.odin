@@ -4,7 +4,7 @@ import "core:c"
 
 when ODIN_OS == .Darwin  do foreign import tracy "tracy.dylib"
 when ODIN_OS == .Windows do foreign import tracy "tracy.lib"
-when ODIN_OS == .Linux   do foreign import tracy "tracy.so"
+when ODIN_OS == .Linux   do foreign import tracy "libTracyClient.so"
 
 TracyPlotFormatEnum :: enum i32
 {
@@ -71,11 +71,21 @@ ___tracy_gpu_calibration_data :: struct {
 	_context:  u8,
 }
 
+
+___tracy_gpu_time_sync_data :: struct{
+    gpuTime : i64,
+    _context : u8,
+}
+
+//not sure if this is the right way tho
+__tracy_lockable_context_data :: distinct rawptr
+
 when #config(TRACY_MANUAL_LIFETIME, false) {
 	@(default_calling_convention="c")
 	foreign tracy {
 		___tracy_startup_profiler  :: proc() ---
 		___tracy_shutdown_profiler :: proc() ---
+		___tracy_profiler_started  :: proc() -> i32 ---
 	}
 }
 
@@ -105,6 +115,7 @@ foreign tracy {
 	___tracy_emit_gpu_new_context                       :: proc( ___tracy_gpu_new_context_data ) ---
 	___tracy_emit_gpu_context_name                      :: proc( ___tracy_gpu_context_name_data ) ---
 	___tracy_emit_gpu_calibration                       :: proc( ___tracy_gpu_calibration_data ) ---
+	___tracy_emit_gpu_time_sync                         :: proc( ___tracy_gpu_time_sync_data ) ---
 
 	___tracy_emit_gpu_zone_begin_serial                 :: proc( ___tracy_gpu_zone_begin_data ) ---
 	___tracy_emit_gpu_zone_begin_callstack_serial       :: proc( ___tracy_gpu_zone_begin_callstack_data ) ---
@@ -115,6 +126,7 @@ foreign tracy {
 	___tracy_emit_gpu_new_context_serial                :: proc( ___tracy_gpu_new_context_data ) ---
 	___tracy_emit_gpu_context_name_serial               :: proc( ___tracy_gpu_context_name_data ) ---
 	___tracy_emit_gpu_calibration_serial                :: proc( ___tracy_gpu_calibration_data ) ---
+	___tracy_emit_gpu_time_sync_serial                  :: proc( ___tracy_gpu_time_sync_data ) ---
 
 	___tracy_connected                                  :: proc() -> b32 ---
 
@@ -126,6 +138,8 @@ foreign tracy {
 	___tracy_emit_memory_alloc_callstack_named          :: proc( ptr: rawptr, size: c.size_t, depth: i32, secure: b32, name: cstring ) ---
 	___tracy_emit_memory_free_named                     :: proc( ptr: rawptr, secure: b32, name: cstring ) ---
 	___tracy_emit_memory_free_callstack_named           :: proc( ptr: rawptr, depth: i32, secure: b32, name: cstring ) ---
+    ___tracy_emit_memory_discard                        :: proc( name : cstring, secure : b32 ) ---
+    ___tracy_emit_memory_discard_callstack              :: proc( name : cstring, secure : b32, depth : i32 ) ---
 
 	___tracy_emit_message                               :: proc( txt: cstring, size: c.size_t, callstack: i32 ) ---
 	___tracy_emit_messageL                              :: proc( txt: cstring, callstack: i32 ) ---
@@ -142,6 +156,18 @@ foreign tracy {
 	___tracy_emit_plot_int                              :: proc( name: cstring, val: i64 ) ---
 	___tracy_emit_plot_config                           :: proc( name: cstring, type: TracyPlotFormatEnum, step, fill: b32, color: u32 ) ---
 	___tracy_emit_message_appinfo                       :: proc( txt: cstring, size: c.size_t ) ---
+
+    ___tracy_announce_lockable_ctx                      :: proc( srcloc : ^___tracy_source_location_data ) -> __tracy_lockable_context_data ---
+    ___tracy_terminate_lockable_ctx                     :: proc( lockdata: __tracy_lockable_context_data ) ---
+    ___tracy_before_lock_lockable_ctx                   :: proc( lockdata: __tracy_lockable_context_data ) -> i32 ---
+    ___tracy_after_lock_lockable_ctx                    :: proc( lockdata: __tracy_lockable_context_data ) ---
+    ___tracy_after_unlock_lockable_ctx                  :: proc( lockdata: __tracy_lockable_context_data ) ---
+    ___tracy_after_try_lock_lockable_ctx                :: proc( lockdata: __tracy_lockable_context_data, acquired: i32 ) ---
+    ___tracy_mark_lockable_ctx                          :: proc( lockdata: __tracy_lockable_context_data, srcloc: ^___tracy_source_location_data ) ---
+    ___tracy_custom_name_lockable_ctx                   :: proc( lockdata: __tracy_lockable_context_data, name : cstring, nameSz : c.size_t) ---
+    
+    ___tracy_begin_sampling_profiler                    :: proc() -> c.int ---
+    ___tracy_end_sampling_profiler                      :: proc() ---
 
 	___tracy_fiber_enter                                :: proc( fiber: cstring ) ---
 	___tracy_fiber_leave                                :: proc() ---
