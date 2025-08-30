@@ -6,6 +6,11 @@ in
 pkgs.mkShell.override { stdenv = pkgs.clangStdenv; }
 {  
   packages = with pkgs; [
+    tbb
+    pugixml
+    cmake
+    ninja
+    openssl
     gnumake 
     pkg-config 
     freetype 
