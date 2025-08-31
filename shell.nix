@@ -6,6 +6,7 @@ in
 pkgs.mkShell.override { stdenv = pkgs.clangStdenv; }
 {  
   packages = with pkgs; [
+    odin
     tbb
     pugixml
     cmake

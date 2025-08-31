@@ -27,7 +27,7 @@ random_generator_using_user_index_as_seed :: proc() -> runtime.Random_Generator 
 	random_state = rand.create(u64(1 + context.user_index)) // 0 value means "use random seed", hence the +1
 	return runtime.default_random_generator(&random_state)
 }
-
+lock : tracy.LockCtx
 main :: proc() {
 	// For demo purposes, use a known seed for each thread
 	context.user_index = 0
@@ -36,6 +36,8 @@ main :: proc() {
 	tracy.SetThreadName("main");
 
 	NUM_WORKERS :: 3;
+
+    lock = tracy.LockAnnounce()
 
 	sync.barrier_init(&bar, 1 + NUM_WORKERS);
 
@@ -68,9 +70,17 @@ main :: proc() {
 			// Do some deliberate leaking
 			_, err := new(int);
 	 	}
+        if rand.int_max(500) < 2{
+            fmt.printf("done!")
+            tracy.LockTerminate(lock)
+            time.sleep(1 * time.Second)
+            lock = tracy.LockAnnounce()
+        }
 
 	 	// Sync all workers to current frame.
+        tracy.LockBeforeLock(lock)
 	 	sync.barrier_wait(&bar);
+        tracy.LockAfterUnlock(lock)
 	}
 }
 
@@ -98,9 +108,11 @@ worker :: proc() {
 			tracy.ZoneNC("worker doing stuff", 0xff0000);
 			random_sleep();
 		}
-
 		// sync with main thread for next frame
+
+        tracy.LockBeforeLock(lock)
 		sync.barrier_wait(&bar);
+        tracy.LockAfterUnlock(lock)
 	}
 }
 

@@ -77,8 +77,8 @@ ___tracy_gpu_time_sync_data :: struct{
     _context : u8,
 }
 
-//not sure if this is the right way tho
-__tracy_lockable_context_data :: distinct rawptr
+//opaque
+__tracy_lockable_context_data :: struct {}
 
 when #config(TRACY_MANUAL_LIFETIME, false) {
 	@(default_calling_convention="c")
@@ -157,14 +157,14 @@ foreign tracy {
 	___tracy_emit_plot_config                           :: proc( name: cstring, type: TracyPlotFormatEnum, step, fill: b32, color: u32 ) ---
 	___tracy_emit_message_appinfo                       :: proc( txt: cstring, size: c.size_t ) ---
 
-    ___tracy_announce_lockable_ctx                      :: proc( srcloc : ^___tracy_source_location_data ) -> __tracy_lockable_context_data ---
-    ___tracy_terminate_lockable_ctx                     :: proc( lockdata: __tracy_lockable_context_data ) ---
-    ___tracy_before_lock_lockable_ctx                   :: proc( lockdata: __tracy_lockable_context_data ) -> i32 ---
-    ___tracy_after_lock_lockable_ctx                    :: proc( lockdata: __tracy_lockable_context_data ) ---
-    ___tracy_after_unlock_lockable_ctx                  :: proc( lockdata: __tracy_lockable_context_data ) ---
-    ___tracy_after_try_lock_lockable_ctx                :: proc( lockdata: __tracy_lockable_context_data, acquired: i32 ) ---
-    ___tracy_mark_lockable_ctx                          :: proc( lockdata: __tracy_lockable_context_data, srcloc: ^___tracy_source_location_data ) ---
-    ___tracy_custom_name_lockable_ctx                   :: proc( lockdata: __tracy_lockable_context_data, name : cstring, nameSz : c.size_t) ---
+    ___tracy_announce_lockable_ctx                      :: proc( srcloc : ^___tracy_source_location_data ) -> ^__tracy_lockable_context_data ---
+    ___tracy_terminate_lockable_ctx                     :: proc( lockdata: ^__tracy_lockable_context_data ) ---
+    ___tracy_before_lock_lockable_ctx                   :: proc( lockdata: ^__tracy_lockable_context_data ) -> i32 ---
+    ___tracy_after_lock_lockable_ctx                    :: proc( lockdata: ^__tracy_lockable_context_data ) ---
+    ___tracy_after_unlock_lockable_ctx                  :: proc( lockdata: ^__tracy_lockable_context_data ) ---
+    ___tracy_after_try_lock_lockable_ctx                :: proc( lockdata: ^__tracy_lockable_context_data, acquired: b32 ) ---
+    ___tracy_mark_lockable_ctx                          :: proc( lockdata: ^__tracy_lockable_context_data, srcloc: ^___tracy_source_location_data ) ---
+    ___tracy_custom_name_lockable_ctx                   :: proc( lockdata: ^__tracy_lockable_context_data, name : cstring, nameSz : c.size_t) ---
     
     ___tracy_begin_sampling_profiler                    :: proc() -> c.int ---
     ___tracy_end_sampling_profiler                      :: proc() ---

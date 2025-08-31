@@ -1,6 +1,7 @@
 package tracy
 
 import "core:c"
+import "core:fmt"
 import "core:strings"
 
 TRACY_ENABLE        :: #config(TRACY_ENABLE, false)
@@ -9,6 +10,7 @@ TRACY_HAS_CALLSTACK :: #config(TRACY_HAS_CALLSTACK, true)
 
 SourceLocationData :: ___tracy_source_location_data
 ZoneCtx            :: ___tracy_c_zone_context
+LockCtx            :: ^__tracy_lockable_context_data
 
 // Zone markup
 
@@ -66,24 +68,47 @@ ZoneBegin :: proc(active: bool, depth: i32, loc := #caller_location) -> (ctx: Zo
 @(disabled=!TRACY_ENABLE) SecureAllocN :: #force_inline proc(ptr: rawptr, size: c.size_t, name: cstring, depth: i32 = TRACY_CALLSTACK) { when TRACY_HAS_CALLSTACK { ___tracy_emit_memory_alloc_callstack_named(ptr, size, depth, true, name)  } else { ___tracy_emit_memory_alloc_named(ptr, size, true, name)  } }
 @(disabled=!TRACY_ENABLE) SecureFreeN  :: #force_inline proc(ptr: rawptr, name: cstring, depth: i32 = TRACY_CALLSTACK)                 { when TRACY_HAS_CALLSTACK { ___tracy_emit_memory_free_callstack_named(ptr, depth, true, name)         } else { ___tracy_emit_memory_free_named(ptr, true, name)         } }
 
+__lock_locations : map[LockCtx] ^___tracy_source_location_data
 
-// TODO : port these
+LockAnnounce :: #force_inline proc(loc := #caller_location) -> (ctx: LockCtx) {
+	when TRACY_ENABLE {
+        id := new(___tracy_source_location_data)
+		// id := ___tracy_alloc_srcloc(u32(loc.line), strings.clone_to_cstring(loc.file_path), len(loc.file_path), strings.clone_to_cstring(loc.procedure), len(loc.procedure))
+        id.name = ""
+        id.function = strings.clone_to_cstring(loc.procedure)         
+        id.file = strings.clone_to_cstring(loc.file_path)
+        id.line = u32(loc.line)
+        id.color = 0
+		ctx = ___tracy_announce_lockable_ctx(nil)
+        __lock_locations[ctx] = id
+	}
+	return
+}
 
-// @(disabled=!TRACY_ENABLE) TracyCLockAnnounce      :: #force_inline proc( lock ) static const struct ___tracy_source_location_data TracyConcat(__tracy_source_location,TracyLine) = { NULL, __func__,  TracyFile, (uint32_t)TracyLine, 0 }; lock = ___tracy_announce_lockable_ctx( &TracyConcat(__tracy_source_location,TracyLine) );
-// @(disabled=!TRACY_ENABLE) TracyCLockTerminate     :: #force_inline proc( lock ) ___tracy_terminate_lockable_ctx( lock );
-// @(disabled=!TRACY_ENABLE) TracyCLockBeforeLock    :: #force_inline proc( lock ) ___tracy_before_lock_lockable_ctx( lock );
-// @(disabled=!TRACY_ENABLE) TracyCLockAfterLock     :: #force_inline proc( lock ) ___tracy_after_lock_lockable_ctx( lock );
-// @(disabled=!TRACY_ENABLE) TracyCLockAfterUnlock   :: #force_inline proc( lock ) ___tracy_after_unlock_lockable_ctx( lock );
-// @(disabled=!TRACY_ENABLE) TracyCLockAfterTryLock  :: #force_inline proc( lock, acquired ) ___tracy_after_try_lock_lockable_ctx( lock, acquired );
-// @(disabled=!TRACY_ENABLE) TracyCLockMark          :: #force_inline proc( lock ) static const struct ___tracy_source_location_data TracyConcat(__tracy_source_location,TracyLine) = { NULL, __func__,  TracyFile, (uint32_t)TracyLine, 0 }; ___tracy_mark_lockable_ctx( lock, &TracyConcat(__tracy_source_location,TracyLine) );
-// @(disabled=!TRACY_ENABLE) TracyCLockCustomName    :: #force_inline proc( lock, name, nameSz ) {___tracy_custom_name_lockable_ctx( lock, name, nameSz )}
+@(disabled=!TRACY_ENABLE) LockTerminate    :: #force_inline proc( lock: ^__tracy_lockable_context_data ) {
+    // WIP
+    // ___tracy_terminate_lockable_ctx( lock )
+}
+@(disabled=!TRACY_ENABLE) LockBeforeLock   :: #force_inline proc( lock: ^__tracy_lockable_context_data ) {___tracy_before_lock_lockable_ctx( lock )}
+@(disabled=!TRACY_ENABLE) LockAfterLock    :: #force_inline proc( lock: ^__tracy_lockable_context_data ) {___tracy_after_lock_lockable_ctx( lock )}
+@(disabled=!TRACY_ENABLE) LockAfterUnlock  :: #force_inline proc( lock: ^__tracy_lockable_context_data ) {___tracy_after_unlock_lockable_ctx( lock )}
+@(disabled=!TRACY_ENABLE) LockAfterTryLock :: #force_inline proc( lock: ^__tracy_lockable_context_data, acquired : b32 ) {___tracy_after_try_lock_lockable_ctx( lock, acquired )}
+@(disabled=!TRACY_ENABLE) LockMark         :: #force_inline proc( lock: LockCtx, loc := #caller_location ) {
+	when TRACY_ENABLE {
+        //WIP
+        //___tracy_mark_lockable_ctx(lock, (^___tracy_source_location_data)(uintptr(id)))
+    }
+}
+@(disabled=!TRACY_ENABLE) LockCustomName    :: #force_inline proc( lock: ^__tracy_lockable_context_data, name: cstring, nameSz: c.size_t ) {___tracy_custom_name_lockable_ctx( lock, name, nameSz )}
 
 // Dummy aliases to match C API (only difference is the `depth` parameter,
 // which we declare as optional for the non-S procs.)
 AllocS        :: Alloc
 FreeS         :: Free
+MemoryDiscardS:: MemoryDiscard
 SecureAllocS  :: SecureAlloc
 SecureFreeS   :: SecureFree
+SecureMemoryDiscardS :: SecureMemoryDiscard
 AllocNS       :: AllocN
 FreeNS        :: FreeN
 SecureAllocNS :: SecureAllocN
@@ -142,4 +167,8 @@ IsConnected :: #force_inline proc() -> bool { return cast(bool)___tracy_connecte
 // Helper for passing cstring+length to Tracy functions.
 @(private="file") _sl :: proc(s: string) -> (cstring, c.size_t) {
 	return cstring(raw_data(s)), c.size_t(len(s))
+}
+// IMPORTANT: exclusively for source code location strings which are null-terminated already
+@(private="file") _cstr :: proc(s: string) -> cstring{ 
+    return strings.unsafe_string_to_cstring(s)
 }
