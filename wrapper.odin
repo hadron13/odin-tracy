@@ -79,7 +79,7 @@ LockAnnounce :: #force_inline proc(loc := #caller_location) -> (ctx: LockCtx) {
         id.file = strings.clone_to_cstring(loc.file_path)
         id.line = u32(loc.line)
         id.color = 0
-		ctx = ___tracy_announce_lockable_ctx(nil)
+		ctx = ___tracy_announce_lockable_ctx(cast(^___tracy_source_location_data)uintptr(id))
         __lock_locations[ctx] = id
 	}
 	return
